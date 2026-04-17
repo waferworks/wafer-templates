@@ -18,7 +18,7 @@ The visible proof is straightforward: the repository root will document the temp
 - [x] (2026-04-17 20:31Z) Created `templates/default-web` with package metadata, config files, server code, client code, shared schemas, tests, and per-template documentation.
 - [x] (2026-04-17 20:49Z) Installed dependencies, generated `templates/default-web/bun.lock`, and verified `bun run lint`, `bun run build`, and `bun run test`.
 - [ ] `bun run db:push` remains blocked because this shell session does not expose `DATABASE_URL`.
-- [ ] Create or attach the GitHub remote if the environment permits it, then push the repo so `bunx degit waferworks/wafer-templates/templates/default-web ...` can be verified against GitHub instead of only the local tree.
+- [x] (2026-04-17 20:57Z) Created `https://github.com/waferworks/wafer-templates`, pushed commit `a2ff352` to `main`, and verified the published `bunx degit waferworks/wafer-templates/templates/default-web ...` flow in a fresh temp directory.
 
 ## Surprises & Discoveries
 
@@ -50,9 +50,9 @@ The visible proof is straightforward: the repository root will document the temp
 
 ## Outcomes & Retrospective
 
-The local scaffold is complete and the public behavior is verified without hand-waving. `bun run lint`, `bun run build`, and `bun run test` pass in `templates/default-web`. Running the app in both dev mode and preview mode on explicit loopback ports returns the browser app on `/` and a `503` JSON health response on `/health` when no `DATABASE_URL` is present, which is the expected degraded behavior for this shell.
+The scaffold is complete locally and remotely. `bun run lint`, `bun run build`, and `bun run test` pass in `templates/default-web`. Running the app in both dev mode and preview mode on explicit loopback ports returns the browser app on `/` and a `503` JSON health response on `/health` when no `DATABASE_URL` is present, which is the expected degraded behavior for this shell. The GitHub repository now exists publicly at `https://github.com/waferworks/wafer-templates`, and the published `degit` path was verified in a fresh temp directory with `bun install`, `bun run build`, and `bun run test`.
 
-The remaining gap is environmental, not implementation-specific: this shell does not expose `DATABASE_URL`, so `db:push` cannot be proven here, and the GitHub repository still needs to be created and pushed before the public `degit` command can be validated end to end.
+The remaining gap is environmental, not implementation-specific: this shell does not expose `DATABASE_URL`, so `bun run db:push` and a real `/health` 200 backed by Postgres could not be proven here. A real-wafer smoke deploy remains advisable because the issue explicitly calls for one.
 
 ## Context and Orientation
 
@@ -97,6 +97,12 @@ If GitHub publishing is available:
 
     gh repo create waferworks/wafer-templates --public --source=. --remote=origin --push
 
+Observed publication sequence:
+
+    gh repo create waferworks/wafer-templates --public --description "Starter templates for Wafer projects."
+    git remote add origin https://github.com/waferworks/wafer-templates.git
+    git push origin HEAD:main
+
 Observed proof after implementation:
 
     bun run test
@@ -111,13 +117,20 @@ Observed proof after implementation:
     curl -i http://127.0.0.1:4011/health
     # / returns HTML 200 and /health returns 503 without DATABASE_URL.
 
+    bunx degit waferworks/wafer-templates/templates/default-web /tmp/wafer-templates-smoke.XXXXXX
+    cd /tmp/wafer-templates-smoke.XXXXXX
+    bun install
+    bun run build
+    bun run test
+    # The public scaffold command succeeds end to end against GitHub.
+
 ## Validation and Acceptance
 
 Validation is behavior-focused:
 
 `templates/default-web` includes the required files and scripts. `bun run lint`, `bun run build`, and `bun run test` all succeeded from `templates/default-web` on 2026-04-17. The test suite proves that `POST /api/todos` creates a todo, `GET /api/todos` returns it, `/health` returns `503` when the repository reports no database connection, and `/health` returns `200` when the repository reports success.
 
-If `DATABASE_URL` is present, `bun run db:push` must succeed without editing the config. If GitHub publication is possible, the final verification should include scaffolding the template into a fresh directory with `bunx degit waferworks/wafer-templates/templates/default-web scratch`, followed by `bun install`, `bun run build`, and `bun run test` inside `scratch`.
+If `DATABASE_URL` is present, `bun run db:push` must succeed without editing the config. GitHub publication is complete, and the final verification now includes scaffolding the template into a fresh directory with `bunx degit waferworks/wafer-templates/templates/default-web scratch`, followed by `bun install`, `bun run build`, and `bun run test` inside `scratch`.
 
 ## Idempotence and Recovery
 
