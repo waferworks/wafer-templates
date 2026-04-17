@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  templates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Validate templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          for template in templates/*; do
+            if [ ! -d "$template" ]; then
+              continue
+            fi
+            echo "==> $template"
+            pushd "$template" >/dev/null
+            bun install
+            bun run lint
+            bun run build
+            bun run test
+            popd >/dev/null
+          done

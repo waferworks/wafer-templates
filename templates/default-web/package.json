@@ -1,0 +1,47 @@
+{
+  "name": "default-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "NODE_ENV=development bun run src/server/index.ts",
+    "start": "NODE_ENV=production bun run src/server/index.ts",
+    "build": "vite build && tsc --noEmit",
+    "preview": "NODE_ENV=production bun run src/server/index.ts",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test": "bun test",
+    "db:push": "drizzle-kit push"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.1.1",
+    "@hono/zod-validator": "^0.7.0",
+    "@radix-ui/react-label": "^2.1.7",
+    "@tanstack/react-query": "^5.80.7",
+    "@tanstack/react-router": "^1.120.5",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.44.2",
+    "hono": "^4.9.2",
+    "lucide-react": "^0.515.0",
+    "postgres": "^3.4.7",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-hook-form": "^7.57.0",
+    "tailwind-merge": "^3.3.1",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@tailwindcss/vite": "^4.1.10",
+    "@types/bun": "^1.2.15",
+    "@types/node": "^24.0.3",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.5",
+    "@vitejs/plugin-react": "^4.5.2",
+    "drizzle-kit": "^0.31.4",
+    "tailwindcss": "^4.1.10",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  }
+}
