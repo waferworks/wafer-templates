@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
-import { createInMemoryTodoRepository } from "../src/server/db/client";
 import { buildApp, getServerConfig } from "../src/server/index";
+import {
+  createInMemoryTodoRepository,
+  createUnavailableTodoRepository,
+} from "./support/todo-repository";
 
 describe("default-web API", () => {
   test("uses Wafer host and PORT-based config", () => {
@@ -37,21 +40,36 @@ describe("default-web API", () => {
   });
 
   test("reports database health from the repository abstraction", async () => {
-    const unavailableApp = buildApp({
-      async list() {
-        return [];
-      },
-      async create() {
-        throw new Error("DATABASE_URL is required.");
-      },
-      async healthCheck() {
-        return false;
-      },
-      async close() {},
-    });
+    const unavailableApp = buildApp(createUnavailableTodoRepository());
     const healthyApp = buildApp(createInMemoryTodoRepository());
 
     expect((await unavailableApp.request("/health")).status).toBe(503);
     expect((await healthyApp.request("/health")).status).toBe(200);
+  });
+
+  test("rejects invalid todo payloads through the public API", async () => {
+    const app = buildApp(createInMemoryTodoRepository());
+
+    const response = await app.request("/api/todos", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        title: "",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+  });
+
+  test("returns a service-unavailable error when todos cannot be loaded", async () => {
+    const app = buildApp(createUnavailableTodoRepository());
+
+    const response = await app.request("/api/todos");
+    const payload = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(payload.error).toContain("DATABASE_URL");
   });
 });

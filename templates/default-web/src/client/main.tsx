@@ -12,6 +12,7 @@ const queryClient = new QueryClient();
 const routeTree = rootRoute.addChildren([indexRoute]);
 const router = createRouter({
   routeTree,
+  defaultNotFoundComponent: () => <p>Not found</p>,
 });
 
 declare module "@tanstack/react-router" {

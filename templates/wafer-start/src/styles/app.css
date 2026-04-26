@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+:root {
+  --canvas: #f7f1e6;
+  --surface: rgb(255 255 255 / 0.84);
+  --surface-overlay: rgb(255 255 255 / 0.74);
+  --surface-muted: rgb(235 229 218 / 0.72);
+  --surface-strong: #161616;
+  --text: #1c1917;
+  --text-soft: #57534e;
+  --text-inverse: #fafaf9;
+  --muted: #78716c;
+  --border: rgb(255 255 255 / 0.72);
+  --border-strong: rgb(120 113 108 / 0.34);
+  --focus-ring: rgb(68 64 60 / 0.85);
+  --focus-soft: rgb(214 211 209 / 0.82);
+  --radius-panel: 28px;
+  --shadow-card: 0 24px 80px -40px rgba(20, 20, 16, 0.45);
+  --shadow-button: 0 18px 45px -26px rgba(20, 20, 16, 0.45);
+  --shadow-floating: 0 20px 60px -42px rgba(15, 23, 42, 0.45);
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  min-height: 100vh;
+  background: radial-gradient(circle at top left, rgba(245, 158, 11, 0.14), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(14, 116, 144, 0.12), transparent 30%),
+    var(--canvas);
+  color: var(--text);
+}
+
+a {
+  color: inherit;
+}
+
+code {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  padding: 0.14rem 0.48rem;
+  font-size: 0.92em;
+}
+
+::selection {
+  background: rgba(217, 119, 6, 0.18);
+}
+
+* {
+  border-color: var(--border);
+}

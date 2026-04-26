@@ -1,5 +1,4 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LoaderCircle, Plus } from "lucide-react";
 import { useForm } from "react-hook-form";
 
 import { type CreateTodoInput, createTodoInputSchema } from "@/shared/schemas";
@@ -30,19 +29,14 @@ export function TodoForm({ isPending = false, onSubmit }: TodoFormProps) {
       })}
     >
       <div className="space-y-2">
-        <Label htmlFor="todo-title">First todo</Label>
-        <Input
-          id="todo-title"
-          placeholder="Call the route, push the schema, ship the feature"
-          {...form.register("title")}
-        />
+        <Label htmlFor="todo-title">Title</Label>
+        <Input id="todo-title" {...form.register("title")} />
         {form.formState.errors.title ? (
           <p className="text-sm text-rose-600">{form.formState.errors.title.message}</p>
         ) : null}
       </div>
-      <Button className="gap-2" disabled={isPending} type="submit">
-        {isPending ? <LoaderCircle className="size-4 animate-spin" /> : <Plus className="size-4" />}
-        Add todo
+      <Button disabled={isPending} type="submit">
+        {isPending ? "Adding…" : "Add todo"}
       </Button>
     </form>
   );

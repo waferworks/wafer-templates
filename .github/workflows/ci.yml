@@ -9,6 +9,18 @@ on:
 jobs:
   templates:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -26,5 +38,18 @@ jobs:
             bun run lint
             bun run build
             bun run test
+            bun run smoke
+            if [ "$(basename "$template")" = "wafer-start" ]; then
+              bun run db:generate
+              git diff --exit-code -- drizzle
+              PG_BOOTSTRAP_URL=postgresql://postgres:postgres@127.0.0.1:5432/postgres \
+              DATABASE_NAME=wafer_start_ci \
+              bun run check:db
+              PG_BOOTSTRAP_URL=postgresql://postgres:postgres@127.0.0.1:5432/postgres \
+              DATABASE_NAME=wafer_start_direct_ci \
+              bun run db:migrate
+              DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/wafer_start_direct_ci \
+              bun run check:db
+            fi
             popd >/dev/null
           done

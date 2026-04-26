@@ -11,12 +11,12 @@ import type { AppBindings } from "../index";
 
 const todosRoute = new Hono<AppBindings>()
   .get("/", async (c) => {
-    const todos = await c.var.todoRepository.list();
+    const todos = await c.var.todoService.listTodos();
 
     return c.json(todoListResponseSchema.parse({ todos }));
   })
   .post("/", zValidator("json", createTodoInputSchema), async (c) => {
-    const todo = await c.var.todoRepository.create(c.req.valid("json"));
+    const todo = await c.var.todoService.createTodo(c.req.valid("json"));
 
     return c.json(todoResponseSchema.parse({ todo }), 201);
   });

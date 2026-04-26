@@ -8,8 +8,10 @@ import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 
-import { type TodoRepository, createTodoRepository } from "./db/client";
+import { type TodoRepository, createTodoRepository } from "./db/todo-repository";
+import { ServiceUnavailableError } from "./errors";
 import todosRoute from "./routes/todos";
+import { createTodoService } from "./services/todo-service";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,7 +22,7 @@ const distClientHtmlPath = path.join(distClientRoot, "public", "index.html");
 
 export interface AppBindings {
   Variables: {
-    todoRepository: TodoRepository;
+    todoService: ReturnType<typeof createTodoService>;
   };
 }
 
@@ -35,16 +37,17 @@ export function getServerConfig() {
 
 export function buildApp(todoRepository: TodoRepository = createTodoRepository()) {
   const app = new Hono<AppBindings>();
+  const todoService = createTodoService(todoRepository);
 
   app.use("*", logger());
   app.use("*", async (c, next) => {
-    c.set("todoRepository", todoRepository);
+    c.set("todoService", todoService);
     await next();
   });
 
   const routes = app
     .get("/health", async (c) => {
-      const healthy = await c.var.todoRepository.healthCheck();
+      const healthy = await c.var.todoService.healthCheck();
 
       return c.json(
         {
@@ -57,13 +60,13 @@ export function buildApp(todoRepository: TodoRepository = createTodoRepository()
     .route("/api/todos", todosRoute);
 
   routes.onError((error, c) => {
-    const isUnavailable = error instanceof Error && error.message.includes("DATABASE_URL");
+    const status = error instanceof ServiceUnavailableError ? error.status : 500;
 
     return c.json(
       {
         error: error instanceof Error ? error.message : "Unexpected server error",
       },
-      isUnavailable ? 503 : 500
+      status
     );
   });
 
@@ -195,6 +198,14 @@ async function handleProductionRequest(request: IncomingMessage, response: Serve
 
 function isHtmlRequest(url: string) {
   const pathname = url.split("?")[0] ?? "/";
+
+  if (
+    pathname.startsWith("/@") ||
+    pathname.startsWith("/src/") ||
+    pathname.startsWith("/node_modules/")
+  ) {
+    return false;
+  }
 
   return pathname === "/" || !pathname.includes(".");
 }

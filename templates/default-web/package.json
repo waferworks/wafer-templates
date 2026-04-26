@@ -11,6 +11,10 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "test": "bun test",
+    "smoke": "bun run ./scripts/smoke.ts",
+    "check": "bun run lint && bun run build && bun run test",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
@@ -23,7 +27,7 @@
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.44.2",
     "hono": "^4.9.2",
-    "lucide-react": "^0.515.0",
+    "@phosphor-icons/react": "^2.1.10",
     "postgres": "^3.4.7",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

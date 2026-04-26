@@ -1,9 +1,10 @@
 import { desc } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
 
+import { resolveConfiguredDatabaseUrl } from "@/env/server";
 import { type CreateTodoInput, type Todo, createTodoInputSchema } from "@/shared/schemas";
 
+import { ServiceUnavailableError } from "../errors";
+import { createDatabaseConnection } from "./connection";
 import { todos } from "./schema";
 
 export interface TodoRepository {
@@ -19,17 +20,12 @@ type TodoRow = {
   createdAt: Date;
 };
 
-export function createTodoRepository(databaseUrl = process.env.DATABASE_URL): TodoRepository {
+export function createTodoRepository(databaseUrl = resolveConfiguredDatabaseUrl()): TodoRepository {
   if (!databaseUrl) {
-    return createUnavailableTodoRepository(
-      "DATABASE_URL is required. Wafer sets it automatically for running apps."
-    );
+    return createUnavailableTodoRepository();
   }
 
-  const sql = postgres(databaseUrl, {
-    prepare: false,
-  });
-  const db = drizzle(sql, { schema: { todos } });
+  const { db, sql } = createDatabaseConnection(databaseUrl);
 
   return {
     async list() {
@@ -56,41 +52,17 @@ export function createTodoRepository(databaseUrl = process.env.DATABASE_URL): To
   };
 }
 
-export function createInMemoryTodoRepository(initialTodos: Todo[] = []): TodoRepository {
-  const todosById = new Map(initialTodos.map((todo) => [todo.id, todo]));
-
+export function createUnavailableTodoRepository(): TodoRepository {
   return {
     async list() {
-      return Array.from(todosById.values()).sort((left, right) =>
-        right.createdAt.localeCompare(left.createdAt)
+      throw new ServiceUnavailableError(
+        "The database is not configured yet. Set DATABASE_URL or the Wafer bootstrap vars."
       );
     },
-    async create(input) {
-      const value = createTodoInputSchema.parse(input);
-      const todo = {
-        id: crypto.randomUUID(),
-        title: value.title,
-        createdAt: new Date().toISOString(),
-      };
-
-      todosById.set(todo.id, todo);
-
-      return todo;
-    },
-    async healthCheck() {
-      return true;
-    },
-    async close() {},
-  };
-}
-
-function createUnavailableTodoRepository(message: string): TodoRepository {
-  return {
-    async list() {
-      throw new Error(message);
-    },
     async create() {
-      throw new Error(message);
+      throw new ServiceUnavailableError(
+        "The database is not configured yet. Set DATABASE_URL or the Wafer bootstrap vars."
+      );
     },
     async healthCheck() {
       return false;
