@@ -1,0 +1,103 @@
+import { describe, expect, test } from "bun:test";
+
+import { createTodo, deleteTodo, listTodos } from "../src/client/api";
+import { buildApp } from "../src/server/index";
+import {
+  createInMemoryTodoRepository,
+  createUnavailableTodoRepository,
+} from "./support/todo-repository";
+
+describe("example feature API", () => {
+  test("creates and lists todos through the public routes", async () => {
+    const app = buildApp({ todoRepository: createInMemoryTodoRepository() });
+
+    const createResponse = await app.request("/api/todos", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        title: "Ship the first template",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const listResponse = await app.request("/api/todos");
+    const payload = await listResponse.json();
+
+    expect(listResponse.status).toBe(200);
+    expect(payload.todos).toHaveLength(1);
+    expect(payload.todos[0].title).toBe("Ship the first template");
+  });
+
+  test("deletes todos through the public routes", async () => {
+    const app = buildApp({ todoRepository: createInMemoryTodoRepository() });
+    const createResponse = await app.request("/api/todos", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        title: "Remove this example item",
+      }),
+    });
+    const created = await createResponse.json();
+
+    const deleteResponse = await app.request(`/api/todos/${created.todo.id}`, {
+      method: "DELETE",
+    });
+    const listResponse = await app.request("/api/todos");
+    const payload = await listResponse.json();
+
+    expect(deleteResponse.status).toBe(204);
+    expect(payload.todos).toHaveLength(0);
+  });
+
+  test("rejects invalid todo payloads through the public API", async () => {
+    const app = buildApp({ todoRepository: createInMemoryTodoRepository() });
+
+    const response = await app.request("/api/todos", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        title: "",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+  });
+
+  test("returns a service-unavailable error when todos cannot be loaded", async () => {
+    const app = buildApp({ todoRepository: createUnavailableTodoRepository() });
+
+    const response = await app.request("/api/todos");
+    const payload = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(payload.error).toContain("DATABASE_URL");
+  });
+
+  test("surfaces API error messages in client helpers", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ error: "Configure database env and run migrations." }), {
+        headers: { "content-type": "application/json" },
+        status: 503,
+      })) as unknown as typeof fetch;
+
+    try {
+      await expect(listTodos()).rejects.toThrow("Configure database env and run migrations.");
+      await expect(createTodo({ title: "Write the docs" })).rejects.toThrow(
+        "Configure database env and run migrations."
+      );
+      await expect(deleteTodo("todo_123")).rejects.toThrow(
+        "Configure database env and run migrations."
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});

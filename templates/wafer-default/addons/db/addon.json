@@ -1,0 +1,23 @@
+{
+  "name": "db",
+  "description": "Adds Drizzle and Postgres persistence plumbing.",
+  "requires": [],
+  "dependencies": {
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.7"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.4"
+  },
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "bun run ./scripts/db-migrate.ts",
+    "db:push": "bun run ./scripts/db-push.ts",
+    "_db:push:app": "drizzle-kit push"
+  },
+  "files": "files",
+  "nextSteps": [
+    "Run bun install.",
+    "Set DATABASE_URL or the Wafer bootstrap vars when you want to run migrations or connect to Postgres."
+  ]
+}

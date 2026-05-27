@@ -1,0 +1,60 @@
+{
+  "name": "auth-clerk",
+  "description": "Adds Clerk client and server authentication scaffolding.",
+  "requires": [],
+  "dependencies": {
+    "@clerk/backend": "^3.4.1",
+    "@clerk/react": "^6.4.5"
+  },
+  "files": "files",
+  "patches": [
+    {
+      "type": "insertAfterMarkerSorted",
+      "file": "src/client/main.tsx",
+      "marker": "// addon:client-auth-imports",
+      "snippet": "import { ClerkAuthProvider } from \"@/client/auth/clerk\";"
+    },
+    {
+      "type": "insertAfterMarkerSorted",
+      "file": "src/client/main.tsx",
+      "marker": "// addon:client-route-imports",
+      "snippet": "import { signInRoute } from \"@/client/routes/sign-in\";"
+    },
+    {
+      "type": "insertAfterMarker",
+      "file": "src/client/main.tsx",
+      "marker": "// addon:client-routes",
+      "snippet": "  signInRoute,"
+    },
+    {
+      "type": "insertAfterMarker",
+      "file": "src/client/routes/index.tsx",
+      "marker": "// addon:home-actions",
+      "snippet": "    { href: \"/sign-in\", label: \"Sign in\" },"
+    },
+    {
+      "type": "wrapMarker",
+      "file": "src/client/main.tsx",
+      "marker": "<RouterProvider router={router} />",
+      "before": "<ClerkAuthProvider>",
+      "after": "</ClerkAuthProvider>"
+    },
+    {
+      "type": "insertAfterMarkerSorted",
+      "file": "src/server/app.ts",
+      "marker": "// addon:server-imports",
+      "snippet": "import authRoute from \"./routes/auth\";"
+    },
+    {
+      "type": "insertAfterMarker",
+      "file": "src/server/app.ts",
+      "marker": "// addon:server-routes",
+      "snippet": "  app.route(\"/api/auth\", authRoute);"
+    }
+  ],
+  "nextSteps": [
+    "Run bun install.",
+    "Run bun run setup:auth so Clerk can send login emails, create/link the auth project, pull env, and verify the app.",
+    "Open /sign-in after starting the app."
+  ]
+}

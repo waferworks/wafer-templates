@@ -1,0 +1,72 @@
+import { describe, expect, test } from "bun:test";
+
+import { isClerkServerConfigured, readClerkServerEnv } from "../src/server/auth/clerk";
+import { buildApp } from "../src/server/index";
+
+describe("Clerk auth add-on", () => {
+  test("reports anonymous session state without exposing a session id", async () => {
+    const env = snapshotClerkEnv();
+
+    try {
+      clearClerkEnv();
+      const response = await buildApp().request("/api/auth/session");
+      const payload = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(payload).toEqual({
+        isConfigured: false,
+        isSignedIn: false,
+        orgId: null,
+        userId: null,
+      });
+      expect(payload).not.toHaveProperty("sessionId");
+    } finally {
+      restoreClerkEnv(env);
+    }
+  });
+
+  test("reads Clerk keys and authorized parties from pulled env", () => {
+    const env = {
+      CLERK_AUTHORIZED_PARTIES: "http://localhost:3000, https://example.test",
+      CLERK_SECRET_KEY: "sk_test_fake",
+      VITE_CLERK_PUBLISHABLE_KEY: "pk_test_fake",
+    };
+
+    expect(readClerkServerEnv(env)).toEqual({
+      authorizedParties: ["http://localhost:3000", "https://example.test"],
+      clerkPublishableKey: "pk_test_fake",
+      clerkSecretKey: "sk_test_fake",
+    });
+    expect(isClerkServerConfigured(env)).toBe(true);
+  });
+});
+
+const clerkEnvKeys = [
+  "CLERK_AUTHORIZED_PARTIES",
+  "CLERK_PUBLISHABLE_KEY",
+  "CLERK_SECRET_KEY",
+  "VITE_CLERK_PUBLISHABLE_KEY",
+] as const;
+
+type ClerkEnvSnapshot = Record<(typeof clerkEnvKeys)[number], string | undefined>;
+
+function snapshotClerkEnv() {
+  return Object.fromEntries(clerkEnvKeys.map((key) => [key, process.env[key]])) as ClerkEnvSnapshot;
+}
+
+function clearClerkEnv() {
+  for (const key of clerkEnvKeys) {
+    delete process.env[key];
+  }
+}
+
+function restoreClerkEnv(env: ClerkEnvSnapshot) {
+  for (const key of clerkEnvKeys) {
+    if (env[key] === undefined) {
+      delete process.env[key];
+      continue;
+    }
+
+    process.env[key] = env[key];
+  }
+}

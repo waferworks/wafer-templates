@@ -1,0 +1,10 @@
+.DS_Store
+.idea/
+.vscode/
+.superset/
+node_modules/
+dist/
+docs/plans/
+.env
+.env.local
+.env.*.local

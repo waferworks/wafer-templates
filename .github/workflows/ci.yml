@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  templates:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Verify template Bun install policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          for package_json in templates/*/package.json; do
+            template="$(dirname "$package_json")"
+            bunfig="$template/bunfig.toml"
+            if [ ! -f "$bunfig" ]; then
+              echo "::error file=$bunfig::Template is missing bunfig.toml"
+              exit 1
+            fi
+            if ! grep -Eq '^\[install\]$' "$bunfig"; then
+              echo "::error file=$bunfig::bunfig.toml must include an [install] section"
+              exit 1
+            fi
+            if ! grep -Eq '^[[:space:]]*minimumReleaseAge[[:space:]]*=[[:space:]]*604800[[:space:]]*$' "$bunfig"; then
+              echo "::error file=$bunfig::bunfig.toml must set minimumReleaseAge = 604800"
+              exit 1
+            fi
+          done
+      - name: Validate templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          for template in templates/*; do
+            if [ ! -d "$template" ]; then
+              continue
+            fi
+            echo "==> $template"
+            pushd "$template" >/dev/null
+            bun install --minimum-release-age 604800
+            bun run lint
+            bun run build
+            bun run test
+            bun run smoke
+            if [ "$(basename "$template")" = "wafer-default" ]; then
+              PG_BOOTSTRAP_URL=postgresql://postgres:postgres@127.0.0.1:5432/postgres \
+              bun run check:addons
+            fi
+            if [ "$(basename "$template")" = "wafer-start" ]; then
+              bun run db:generate
+              git diff --exit-code -- drizzle
+              PG_BOOTSTRAP_URL=postgresql://postgres:postgres@127.0.0.1:5432/postgres \
+              DATABASE_NAME=wafer_start_ci \
+              bun run check:db
+              PG_BOOTSTRAP_URL=postgresql://postgres:postgres@127.0.0.1:5432/postgres \
+              DATABASE_NAME=wafer_start_direct_ci \
+              bun run db:migrate
+              DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/wafer_start_direct_ci \
+              bun run check:db
+            fi
+            popd >/dev/null
+          done

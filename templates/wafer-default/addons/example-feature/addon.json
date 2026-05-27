@@ -1,0 +1,90 @@
+{
+  "name": "example-feature",
+  "description": "Adds a database-backed example feature UI and API using todos as the concrete pattern.",
+  "requires": ["db"],
+  "dependencies": {
+    "@hono/zod-validator": "^0.7.0",
+    "@hookform/resolvers": "^5.1.1",
+    "@tanstack/react-query": "^5.80.7",
+    "react-hook-form": "^7.57.0",
+    "zod": "^3.25.67"
+  },
+  "scripts": {
+    "test": "bun test tests --timeout 30000"
+  },
+  "files": "files",
+  "patches": [
+    {
+      "type": "insertAfterMarkerSorted",
+      "file": "src/server/app.ts",
+      "marker": "// addon:server-imports",
+      "snippet": "import type { TodoRepository } from \"./db/todo-repository\";\nimport { createTodoRepository } from \"./db/todo-repository\";\nimport todosRoute from \"./routes/todos\";\nimport { type TodoService, createTodoService } from \"./services/todo-service\";"
+    },
+    {
+      "type": "insertAfterMarker",
+      "file": "src/server/app.ts",
+      "marker": "// addon:app-variables",
+      "snippet": "    todoService: TodoService;"
+    },
+    {
+      "type": "insertAfterMarker",
+      "file": "src/server/app.ts",
+      "marker": "// addon:app-options",
+      "snippet": "  todoRepository?: TodoRepository;"
+    },
+    {
+      "type": "insertAfterMarker",
+      "file": "src/server/app.ts",
+      "marker": "// addon:server-services",
+      "snippet": "  const todoRepository = options.todoRepository ?? createTodoRepository();\n  const todoService = createTodoService(todoRepository);\n  registerCleanup(() => todoRepository.close());\n\n  app.use(\"*\", async (c, next) => {\n    c.set(\"todoService\", todoService);\n    await next();\n  });"
+    },
+    {
+      "type": "insertAfterMarker",
+      "file": "src/server/app.ts",
+      "marker": "// addon:server-routes",
+      "snippet": "  app.route(\"/api/todos\", todosRoute);"
+    },
+    {
+      "type": "insertAfterMarkerSorted",
+      "file": "src/client/main.tsx",
+      "marker": "// addon:client-provider-imports",
+      "snippet": "import { QueryClient, QueryClientProvider } from \"@tanstack/react-query\";"
+    },
+    {
+      "type": "insertAfterMarkerSorted",
+      "file": "src/client/main.tsx",
+      "marker": "// addon:client-route-imports",
+      "snippet": "import { todosRoute } from \"@/client/routes/todos\";"
+    },
+    {
+      "type": "insertAfterMarker",
+      "file": "src/client/main.tsx",
+      "marker": "// addon:client-routes",
+      "snippet": "  todosRoute,"
+    },
+    {
+      "type": "insertAfterMarker",
+      "file": "src/client/routes/index.tsx",
+      "marker": "// addon:home-actions",
+      "snippet": "    { href: \"/todos\", label: \"Open todos\" },"
+    },
+    {
+      "type": "insertAfterMarker",
+      "file": "src/client/main.tsx",
+      "marker": "// addon:client-render-wrapper",
+      "snippet": "const queryClient = new QueryClient();"
+    },
+    {
+      "type": "wrapMarker",
+      "file": "src/client/main.tsx",
+      "marker": "<RouterProvider router={router} />",
+      "before": "<QueryClientProvider client={queryClient}>",
+      "after": "</QueryClientProvider>"
+    }
+  ],
+  "nextSteps": [
+    "Run bun install.",
+    "Configure database env and run bun run db:migrate.",
+    "Open /todos after starting the app."
+  ]
+}
