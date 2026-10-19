@@ -1,0 +1,49 @@
+import { describe, expect, test } from "bun:test";
+
+import { createDatabaseConnection } from "../src/server/db/connection";
+
+const bootstrapUrl = process.env.PG_BOOTSTRAP_URL;
+
+describe("database connection", () => {
+  test("reads the server and role from libpq URL query options", () => {
+    const { sql } = createDatabaseConnection(
+      "postgresql:///app_db?host=/run/postgresql&port=5433&user=app_role&application_name=app"
+    );
+
+    expect(sql.options.path).toBe("/run/postgresql/.s.PGSQL.5433");
+    expect(sql.options.user).toBe("app_role");
+    expect(sql.options.database).toBe("app_db");
+    expect(sql.options.connection).toMatchObject({ application_name: "app" });
+    expect(sql.options.connection).not.toHaveProperty("host");
+    expect(sql.options.connection).not.toHaveProperty("port");
+    expect(sql.options.connection).not.toHaveProperty("user");
+  });
+
+  test("passes other URLs to postgres.js unchanged", () => {
+    const { sql } = createDatabaseConnection(
+      "postgresql://app_role:secret@db.example.com:6543/app_db?sslmode=require"
+    );
+
+    expect(sql.options.host).toEqual(["db.example.com"]);
+    expect(sql.options.port).toEqual([6543]);
+    expect(sql.options.user).toBe("app_role");
+    expect(sql.options.ssl).toBe("require");
+  });
+
+  test.skipIf(!bootstrapUrl)("connects as the role named in the URL query", async () => {
+    const url = new URL(bootstrapUrl ?? "");
+    const role = decodeURIComponent(url.username);
+    const database = url.pathname.slice(1);
+    url.searchParams.set("host", url.hostname);
+    url.searchParams.set("port", url.port || "5432");
+    url.searchParams.set("user", role);
+    const { sql } = createDatabaseConnection(url.toString());
+
+    try {
+      const [identity] = await sql`select current_user as role, current_database() as database`;
+      expect(identity).toEqual({ role, database });
+    } finally {
+      await sql.end({ timeout: 1 });
+    }
+  });
+});
