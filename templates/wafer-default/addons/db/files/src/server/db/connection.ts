@@ -28,25 +28,42 @@ export function createDatabaseConnection(databaseUrl = resolveConfiguredDatabase
 // `postgresql:///app?host=/run/postgresql&user=app`. postgres.js would send those to
 // PostgreSQL as settings, which it rejects, so they become connection options instead.
 function splitServerQueryOptions(databaseUrl: string) {
-  const queryStart = databaseUrl.indexOf("?");
-  const query = new URLSearchParams(queryStart === -1 ? "" : databaseUrl.slice(queryStart + 1));
+  const fragmentStart = databaseUrl.includes("#") ? databaseUrl.indexOf("#") : databaseUrl.length;
+  const queryStart = databaseUrl.slice(0, fragmentStart).indexOf("?");
+  const query = new URLSearchParams(
+    queryStart === -1 ? "" : databaseUrl.slice(queryStart + 1, fragmentStart)
+  );
 
   if (!serverQueryOptions.some((key) => query.has(key))) {
     return { url: databaseUrl, server: {} };
   }
 
   const host = query.get("host") || undefined;
-  const port = Number(query.get("port")) || undefined;
+  const port = parsePort(query.get("port"));
   const user = query.get("user") || undefined;
   for (const key of serverQueryOptions) {
     query.delete(key);
   }
 
-  const base = databaseUrl.slice(0, queryStart);
   const settings = query.toString();
+  const base = databaseUrl.slice(0, queryStart);
+  const fragment = databaseUrl.slice(fragmentStart);
 
   return {
-    url: settings ? `${base}?${settings}` : base,
+    url: `${base}${settings ? `?${settings}` : ""}${fragment}`,
     server: { host, port, user },
   };
+}
+
+function parsePort(value: string | null) {
+  if (!value) {
+    return undefined;
+  }
+
+  const port = Number(value);
+  if (!/^\d+$/.test(value) || port < 1 || port > 65535) {
+    throw new Error("DATABASE_URL port must be a single port number from 1 to 65535.");
+  }
+
+  return port;
 }
