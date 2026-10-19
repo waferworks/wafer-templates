@@ -1,7 +1,6 @@
 import path from "node:path";
 
 import { migrate } from "drizzle-orm/postgres-js/migrator";
-import postgres from "postgres";
 
 import {
   buildDatabaseUrl,
@@ -10,7 +9,7 @@ import {
 } from "../../env/database";
 import { ServiceUnavailableError } from "../errors";
 
-import { createDatabaseConnection } from "./connection";
+import { createDatabaseConnection, createPostgresClient } from "./connection";
 
 type EnvShape = Record<string, string | undefined>;
 
@@ -45,7 +44,7 @@ export async function ensureDatabaseReady(env: EnvShape = process.env) {
   }
 
   const targetUrl = buildDatabaseUrl(bootstrapUrl, databaseName);
-  const sql = postgres(bootstrapUrl, { max: 1, prepare: false });
+  const sql = createPostgresClient(bootstrapUrl, { max: 1 });
 
   try {
     const rows = await sql<{ exists: boolean }[]>`

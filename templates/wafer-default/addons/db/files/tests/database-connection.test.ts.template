@@ -1,0 +1,103 @@
+import { describe, expect, test } from "bun:test";
+
+import { buildDatabaseUrl } from "../src/env/database";
+import { ensureDatabaseReady } from "../src/server/db/bootstrap";
+import { createDatabaseConnection, createPostgresClient } from "../src/server/db/connection";
+
+const bootstrapUrl = process.env.PG_BOOTSTRAP_URL;
+
+describe("database connection", () => {
+  test("reads the server and role from libpq URL query options", () => {
+    const { sql } = createDatabaseConnection(
+      "postgresql:///app_db?host=/run/postgresql&port=5433&user=app_role&application_name=app"
+    );
+
+    expect(sql.options.path).toBe("/run/postgresql/.s.PGSQL.5433");
+    expect(sql.options.user).toBe("app_role");
+    expect(sql.options.database).toBe("app_db");
+    expect(sql.options.connection).toMatchObject({ application_name: "app" });
+    expect(sql.options.connection).not.toHaveProperty("host");
+    expect(sql.options.connection).not.toHaveProperty("port");
+    expect(sql.options.connection).not.toHaveProperty("user");
+  });
+
+  test("passes other URLs to postgres.js unchanged", () => {
+    const { sql } = createDatabaseConnection(
+      "postgresql://app_role:secret@db.example.com:6543/app_db?sslmode=require"
+    );
+
+    expect(sql.options.host).toEqual(["db.example.com"]);
+    expect(sql.options.port).toEqual([6543]);
+    expect(sql.options.user).toBe("app_role");
+    expect(sql.options.ssl).toBe("require");
+  });
+
+  test("reads only the query, not the fragment", () => {
+    const fragmentOnly = createDatabaseConnection(
+      "postgresql://app_role:secret@db.example.com/app_db#?host=other.example.com&user=other"
+    );
+    const queryThenFragment = createDatabaseConnection(
+      "postgresql:///app_db?host=/run/postgresql&port=5433&user=app_role#note"
+    );
+
+    expect(fragmentOnly.sql.options.host).toEqual(["db.example.com"]);
+    expect(fragmentOnly.sql.options.user).toBe("app_role");
+    expect(queryThenFragment.sql.options.path).toBe("/run/postgresql/.s.PGSQL.5433");
+    expect(queryThenFragment.sql.options.user).toBe("app_role");
+  });
+
+  test("uses one query port for every host and refuses other port values", () => {
+    const hosts = createDatabaseConnection("postgresql:///app_db?host=db1,db2&port=5433");
+    const emptyPort = createDatabaseConnection(
+      "postgresql://localhost:6543/app_db?host=/tmp&port="
+    );
+
+    expect(hosts.sql.options.host).toEqual(["db1", "db2"]);
+    expect(hosts.sql.options.port).toEqual([5433, 5433]);
+    expect(emptyPort.sql.options.path).toBe("/tmp/.s.PGSQL.6543");
+    for (const port of ["5432,5433", "not-a-port", "0", "65536"]) {
+      expect(() => createDatabaseConnection(`postgresql:///app_db?port=${port}`)).toThrow(
+        "DATABASE_URL port must be a single port number"
+      );
+    }
+  });
+
+  test.skipIf(!bootstrapUrl)("connects as the role the URL names", async () => {
+    const { sql } = createDatabaseConnection(queryFormUrl(bootstrapUrl ?? ""));
+
+    try {
+      const [identity] = await sql`select current_user as role, current_database() as database`;
+      expect(identity).toEqual({ role: sql.options.user, database: sql.options.database });
+    } finally {
+      await sql.end({ timeout: 1 });
+    }
+  });
+
+  test.skipIf(!bootstrapUrl)("prepares a database through a query-form bootstrap URL", async () => {
+    const url = queryFormUrl(bootstrapUrl ?? "");
+    const { database } = createPostgresClient(url).options;
+
+    expect(await ensureDatabaseReady({ PG_BOOTSTRAP_URL: url, DATABASE_NAME: database })).toBe(
+      buildDatabaseUrl(url, database)
+    );
+  });
+});
+
+// Copies a TCP bootstrap URL's server and role into the query, where a Wafer socket URL names
+// them. Query values the URL already has are kept.
+function queryFormUrl(value: string) {
+  const url = new URL(value);
+  const authority = {
+    host: url.hostname.replace(/^\[(.*)\]$/, "$1"),
+    port: url.port,
+    user: decodeURIComponent(url.username),
+  };
+
+  for (const [key, authorityValue] of Object.entries(authority)) {
+    if (authorityValue && !url.searchParams.has(key)) {
+      url.searchParams.set(key, authorityValue);
+    }
+  }
+
+  return url.toString();
+}
