@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { buildDatabaseUrl } from "../src/env/database";
+import { ensureDatabaseReady } from "../src/server/db/bootstrap";
 import { createDatabaseConnection } from "../src/server/db/connection";
 
 const bootstrapUrl = process.env.PG_BOOTSTRAP_URL;
@@ -69,6 +71,15 @@ describe("database connection", () => {
     } finally {
       await sql.end({ timeout: 1 });
     }
+  });
+
+  test.skipIf(!bootstrapUrl)("prepares a database through a query-form bootstrap URL", async () => {
+    const url = queryFormUrl(bootstrapUrl ?? "");
+    const database = new URL(url).pathname.slice(1);
+
+    expect(await ensureDatabaseReady({ PG_BOOTSTRAP_URL: url, DATABASE_NAME: database })).toBe(
+      buildDatabaseUrl(url, database)
+    );
   });
 });
 

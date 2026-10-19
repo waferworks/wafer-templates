@@ -14,14 +14,16 @@ export function createDatabaseConnection(databaseUrl = resolveConfiguredDatabase
     );
   }
 
-  const { url, server } = splitServerQueryOptions(databaseUrl);
-  const sql = postgres(url, {
-    ...server,
-    prepare: false,
-  });
+  const sql = createPostgresClient(databaseUrl);
   const db = drizzle(sql, { schema });
 
   return { db, sql };
+}
+
+export function createPostgresClient(databaseUrl: string, options: { max?: number } = {}) {
+  const { url, server } = splitServerQueryOptions(databaseUrl);
+
+  return postgres(url, { ...server, ...options, prepare: false });
 }
 
 // libpq URLs can name the server and role in the query, as in the Unix socket URL
